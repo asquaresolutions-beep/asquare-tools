@@ -6,7 +6,6 @@
 <title>Free QR Code Generator — A Square Solutions</title>
 <meta name="description" content="Generate QR codes free instantly — URL, WiFi, vCard, email, SMS. No signup. Download PNG."/>
 <link rel="canonical" href="https://asquaresolution.com/free-qr-code-generator/"/>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0f1e;color:#e6edf3;min-height:100vh;}
@@ -168,8 +167,52 @@ var curTab='url',curSz=300;
 function go(tab,btn){curTab=tab;document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});document.getElementById('p-'+tab).classList.add('active');if(btn)btn.classList.add('active');document.getElementById('qout').style.display='none';}
 function setSz(sz,btn){curSz=sz;document.querySelectorAll('.sz').forEach(function(b){b.classList.remove('active');});if(btn)btn.classList.add('active');}
 function getData(){switch(curTab){case'url':var u=document.getElementById('i-url').value.trim();if(!u)return null;if(u.indexOf('http')<0)u='https://'+u;return u;case'wifi':var s=document.getElementById('i-ssid').value.trim();if(!s)return null;return'WIFI:T:'+document.getElementById('i-enc').value+';S:'+s+';P:'+document.getElementById('i-pass').value+';;';case'vcard':var fn=document.getElementById('i-fn').value.trim(),ln=document.getElementById('i-ln').value.trim();if(!fn&&!ln)return null;var vc='BEGIN:VCARD\nVERSION:3.0\nN:'+ln+';'+fn+'\nFN:'+fn+' '+ln+'\n';var ph=document.getElementById('i-ph').value,em=document.getElementById('i-em').value,org=document.getElementById('i-org').value,u2=document.getElementById('i-u2').value;if(ph)vc+='TEL:'+ph+'\n';if(em)vc+='EMAIL:'+em+'\n';if(org)vc+='ORG:'+org+'\n';if(u2)vc+='URL:'+u2+'\n';return vc+'END:VCARD';case'email':var to=document.getElementById('i-eto').value.trim();if(!to)return null;var ml='mailto:'+to,ps=[];var sb=document.getElementById('i-sub').value,bd=document.getElementById('i-body').value;if(sb)ps.push('subject='+encodeURIComponent(sb));if(bd)ps.push('body='+encodeURIComponent(bd));if(ps.length)ml+='?'+ps.join('&');return ml;case'sms':var sp=document.getElementById('i-sph').value.trim();if(!sp)return null;var sm=document.getElementById('i-smsg').value;return'sms:'+sp+(sm?'?body='+encodeURIComponent(sm):'');case'text':var tx=document.getElementById('i-txt').value.trim();return tx||null;}return null;}
-function gen(){var d=getData();if(!d){alert('Please fill in the required field.');return;}var dark=document.getElementById('i-dark').value,light=document.getElementById('i-light').value;QRCode.toDataURL(d,{width:curSz,margin:2,color:{dark:dark,light:light},errorCorrectionLevel:'H'},function(err,url){if(err){alert('Error generating QR: '+err.message);return;}var img=document.getElementById('qimg');img.src=url;img.style.width=Math.min(curSz,350)+'px';document.getElementById('qout').style.display='block';});}
-function dl(){var img=document.getElementById('qimg');if(!img.src||img.src===window.location.href){alert('Generate QR first');return;}var a=document.createElement('a');a.download='qr-asquaresolution.png';a.href=img.src;a.click();}
+function gen(){
+  var d=getData();
+  if(!d){alert('Please fill in the required field.');return;}
+  // Google Charts QR API — no library needed, always works
+  var encoded=encodeURIComponent(d);
+  var url='https://chart.googleapis.com/chart?cht=qr&chs='+curSz+'x'+curSz+'&chl='+encoded+'&choe=UTF-8&chld=H|1';
+  var img=document.getElementById('qimg');
+  img.onload=function(){document.getElementById('qout').style.display='block';};
+  img.onerror=function(){
+    // Fallback: QR Server API
+    var url2='https://api.qrserver.com/v1/create-qr-code/?size='+curSz+'x'+curSz+'&data='+encoded+'&ecc=H';
+    img.src=url2;
+    document.getElementById('qout').style.display='block';
+  };
+  img.crossOrigin='anonymous';
+  img.src=url;
+  document.getElementById('qout').style.display='block';
+}
+function dl(){
+  var img=document.getElementById('qimg');
+  if(!img.src){alert('Generate QR first');return;}
+  // Try canvas method for download
+  var cv=document.createElement('canvas');
+  var im=new Image();
+  im.crossOrigin='anonymous';
+  im.onload=function(){
+    cv.width=im.width;cv.height=im.height;
+    var ctx=cv.getContext('2d');
+    ctx.fillStyle='#ffffff';
+    ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(im,0,0);
+    var a=document.createElement('a');
+    a.download='qr-asquaresolution.png';
+    a.href=cv.toDataURL('image/png');
+    a.click();
+  };
+  im.onerror=function(){
+    // Direct download fallback
+    var a=document.createElement('a');
+    a.download='qr-asquaresolution.png';
+    a.href=img.src;
+    a.target='_blank';
+    a.click();
+  };
+  im.src=img.src+'&t='+Date.now();
+}
 var C128=['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100','10011001000','10011000100','10001100100','11001001000','11001000100','11000100100','10110011100','10011011100','10011001110','10111001100','10011101100','10011100110','11001110010','11001011100','11001001110','11011100100','11001110100','11101101110','11101001100','11100101100','11100100110','11101100100','11100110100','11100110010','11011011000','11011000110','11000110110','10100011000','10001011000','10001000110','10110001000','10001101000','10001100010','11010001000','11000101000','11000100010','10110111000','10110001110','10001101110','10111011000','10111000110','10001110110','11101110110','11010001110','11000101110','11011101000','11011100010','11011101110','11101011000','11101000110','11100010110','11101101000','11101100010','11100011010','11101111010','11001000010','11110001010','10100110000','10100001100','10010110000','10010000110','10000101100','10000100110','10110010000','10110000100','10011010000','10011000010','10000110100','10000110010','11000010010','11001010000','11110111010','11000010100','10001111010','10100111100','10010111100','10010011110','10111100100','10011110100','10011110010','11110100100','11110010100','11110010010','11011011110','11011110110','11110110110','10101111000','10100011110','10001011110','10111101000','10111100010','11110101000','11110100010','10111011110','10111101110','11101011110','11110101110','11010000100','11010010000','11010011100'];
 function bcGen(){var tx=document.getElementById('bc-in').value.trim();if(!tx){alert('Enter barcode content');return;}bcRender(document.getElementById('bc-svg'),tx,document.getElementById('bc-txt').checked);document.getElementById('bc-out').style.display='block';}
 function bcRender(sv,tx,st){var cs=104,vs=[];for(var i=0;i<tx.length;i++){var c=tx.charCodeAt(i)-32;if(c<0||c>94)c=0;vs.push(c);cs+=c*(i+1);}var ck=cs%103,bars='11010000100';for(var i=0;i<vs.length;i++)bars+=(C128[vs[i]]||'');bars+=(C128[ck]||'');bars+='1100011101011';var bw=2,bh=80,mg=12,tw=bars.length*bw+mg*2,th=bh+mg*2+(st?22:0);sv.setAttribute('width',tw);sv.setAttribute('height',th);sv.setAttribute('viewBox','0 0 '+tw+' '+th);sv.innerHTML='<rect width="100%" height="100%" fill="white"/>';var x=mg;for(var i=0;i<bars.length;i++){if(bars[i]==='1'){var r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',x);r.setAttribute('y',mg);r.setAttribute('width',bw);r.setAttribute('height',bh);r.setAttribute('fill','#000');sv.appendChild(r);}x+=bw;}if(st){var t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',tw/2);t.setAttribute('y',th-4);t.setAttribute('text-anchor','middle');t.setAttribute('font-size','12');t.setAttribute('font-family','monospace');t.setAttribute('fill','#000');t.textContent=tx;sv.appendChild(t);}}
